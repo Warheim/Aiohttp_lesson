@@ -1,0 +1,8 @@
+aiohttp
+chardet
+aiodns
+pytest
+requests
+asyncpg
+python-dotenv
+sqlalchemy
