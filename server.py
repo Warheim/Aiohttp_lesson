@@ -2,6 +2,7 @@ from aiohttp import web
 from database import engine, Session
 from models import Base, UserModel
 import json
+from sqlalchemy.exc import IntegrityError
 
 app = web.Application()
 
@@ -30,13 +31,40 @@ class Users(web.View):
             )
 
     async def post(self):
-        pass
+        user_data = await self.request.json()
+        async with Session() as session:
+            new_user = UserModel(**user_data)
+            session.add(new_user)
+            try:
+                await session.commit()
+            except IntegrityError as er:
+                raise web.HTTPConflict(
+                    text=json.dumps(
+                        {'status': 'error', 'description': 'user already exists'}),
+                    content_type='application/json'
+                )
+            return web.json_response({
+                'id': new_user.id
+            })
 
     async def patch(self):
-        pass
+        user_id = int(self.request.match_info['user_id'])
+        user_data = await self.request.json()
+        async with Session() as session:
+            user = await get_user(user_id=user_id, session=session)
+            for key, value in user_data.items():
+                setattr(user, key, value)
+                session.add(user)
+                await session.commit()
+            return web.json_response({'status': 'success'})
 
     async def delete(self):
-        pass
+        user_id = int(self.request.match_info['user_id'])
+        async with Session() as session:
+            user = await get_user(user_id=user_id, session=session)
+            await session.delete(user)
+            await session.commit()
+            return web.json_response({'status': 'success'})
 
 
 async def orm_context(app: web.Application):
